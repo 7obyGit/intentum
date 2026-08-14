@@ -1,0 +1,39 @@
+{
+  "name": "intentum",
+  "version": "0.1.0",
+  "description": "Typed, observable AI functions and resilient workflows for TypeScript.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE", "docs", "examples"],
+  "scripts": {
+    "build": "node ./node_modules/typescript/lib/tsc.js -p tsconfig.json",
+    "test": "node ./node_modules/vitest/vitest.mjs run",
+    "test:watch": "node ./node_modules/vitest/vitest.mjs",
+    "typecheck": "node ./node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.test.json",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": ["ai", "llm", "typescript", "workflows", "structured-output", "codex", "automation"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/7obyGit/intentum.git"
+  },
+  "bugs": {
+    "url": "https://github.com/7obyGit/intentum/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.8"
+  }
+}
