@@ -1,7 +1,34 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_INTELLIGENCE, resolveIntelligence } from "../src/model.js";
 import { AutoProvider, OpenAICompatibleProvider, ProviderError } from "../src/provider.js";
 
 describe("providers", () => {
+  it("defaults model selection to MEDIUM intelligence", async () => {
+    const previousIntelligence = process.env.INTENTUM_INTELLIGENCE;
+    const previousModel = process.env.INTENTUM_MODEL;
+    delete process.env.INTENTUM_INTELLIGENCE;
+    delete process.env.INTENTUM_MODEL;
+    let body: Record<string, unknown> | undefined;
+    try {
+      const provider = new OpenAICompatibleProvider({
+        apiKey: "test-key",
+        fetch: async (_input, init) => {
+          body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+          return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
+        }
+      });
+      await expect(provider.generateText({ prompt: "hello" })).resolves.toBe("ok");
+      expect(DEFAULT_INTELLIGENCE).toBe("MEDIUM");
+      expect(resolveIntelligence(undefined)).toBe("MEDIUM");
+      expect(body?.model).toBe("Luna High");
+    } finally {
+      if (previousIntelligence === undefined) delete process.env.INTENTUM_INTELLIGENCE;
+      else process.env.INTENTUM_INTELLIGENCE = previousIntelligence;
+      if (previousModel === undefined) delete process.env.INTENTUM_MODEL;
+      else process.env.INTENTUM_MODEL = previousModel;
+    }
+  });
+
   it("retries transient OpenAI-compatible failures with backoff controls", async () => {
     let calls = 0;
     const provider = new OpenAICompatibleProvider({

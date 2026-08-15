@@ -36,6 +36,8 @@ export INTENTUM_MODEL="gpt-4o-mini"                    # optional
 export INTENTUM_PROVIDER="auto"                       # optional; Codex/local/cloud detection is the default
 ```
 
+When neither `model` nor `intelligence` is specified, Intentum defaults to `MEDIUM` (`Luna High`).
+
 By default, Intentum auto-selects an installed Codex CLI first, then a reachable local OpenAI-compatible server (Ollama or LM Studio), then a configured cloud endpoint. To choose explicitly:
 
 ```bash

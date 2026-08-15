@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | `INTENTUM_API_KEY` | API credential | `OPENAI_API_KEY` |
 | `INTENTUM_BASE_URL` | API root | `https://api.openai.com/v1` |
-| `INTENTUM_MODEL` | Chat model | `gpt-4o-mini` |
+| `INTENTUM_MODEL` | Chat model | `Luna High` (MEDIUM) |
 | `INTENTUM_LOCAL_BASE_URL` | Local OpenAI-compatible API root | auto-detected Ollama/LM Studio URLs |
-| `INTENTUM_LOCAL_MODEL` | Local model name | `llama3.2` |
+| `INTENTUM_LOCAL_MODEL` | Local model name | `Luna High` (MEDIUM) |
 | `INTENTUM_PROVIDER` | `auto`, `openai`, `codex`, or `local` | `auto` |
 | `INTENTUM_INTELLIGENCE` | `LOW`, `MEDIUM`, or `HIGH` | unset |
 

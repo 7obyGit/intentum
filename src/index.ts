@@ -35,7 +35,7 @@ export {
   type StringSchemaOptions,
   type UnknownKeyPolicy
 } from "./schema.js";
-export { Intelligence, INTELLIGENCE_MODELS, modelForIntelligence, parseIntelligence } from "./model.js";
+export { DEFAULT_INTELLIGENCE, Intelligence, INTELLIGENCE_MODELS, modelForIntelligence, parseIntelligence, resolveIntelligence } from "./model.js";
 export { FileCache, MemoryCache } from "./cache.js";
 export { describeArguments } from "./context.js";
 export {

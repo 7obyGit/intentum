@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { modelForIntelligence, parseIntelligence, type Intelligence } from "./model.js";
+import { DEFAULT_INTELLIGENCE, modelForIntelligence, parseIntelligence, type Intelligence } from "./model.js";
 import {
   StructuredOutputError,
   type GenerateRequest,
@@ -105,13 +105,14 @@ export class OpenAICompatibleProvider implements ModelProvider {
   private readonly allowAnonymous: boolean;
 
   constructor(options: OpenAICompatibleOptions = {}) {
-    const intelligence = options.intelligence ?? parseIntelligence(process.env.INTENTUM_INTELLIGENCE);
+    const configuredIntelligence = options.intelligence ?? parseIntelligence(process.env.INTENTUM_INTELLIGENCE);
+    const intelligence = configuredIntelligence ?? DEFAULT_INTELLIGENCE;
     this.apiKey = options.apiKey ?? process.env.INTENTUM_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
     this.baseURL = (options.baseURL ?? process.env.INTENTUM_BASE_URL ?? "https://api.openai.com/v1").replace(/\/$/, "");
     this.model = options.model
-      ?? (intelligence ? modelForIntelligence(intelligence) : undefined)
+      ?? (configuredIntelligence ? modelForIntelligence(configuredIntelligence) : undefined)
       ?? process.env.INTENTUM_MODEL
-      ?? "gpt-4o-mini";
+      ?? modelForIntelligence(intelligence);
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.options = options;
     this.allowAnonymous = options.allowAnonymous ?? false;
@@ -308,11 +309,13 @@ export class CodexProvider implements ModelProvider {
   private readonly options: ProviderRetryOptions;
 
   constructor(options: CodexOptions = {}) {
-    const intelligence = options.intelligence ?? parseIntelligence(process.env.INTENTUM_INTELLIGENCE);
+    const configuredIntelligence = options.intelligence ?? parseIntelligence(process.env.INTENTUM_INTELLIGENCE);
+    const intelligence = configuredIntelligence ?? DEFAULT_INTELLIGENCE;
     this.command = options.command ?? process.env.INTENTUM_CODEX_COMMAND ?? "codex";
     this.model = options.model
-      ?? (intelligence ? modelForIntelligence(intelligence) : undefined)
-      ?? process.env.INTENTUM_CODEX_MODEL;
+      ?? (configuredIntelligence ? modelForIntelligence(configuredIntelligence) : undefined)
+      ?? process.env.INTENTUM_CODEX_MODEL
+      ?? modelForIntelligence(intelligence);
     this.cwd = options.cwd;
     this.sandbox = options.sandbox ?? "workspace-write";
     this.options = options;
@@ -461,6 +464,10 @@ export class AutoProvider implements ModelProvider {
     if (commandAvailable(codexCommand)) providers.push(new CodexProvider({ ...this.options, ...codexOptions }));
 
     const localOptions = this.options.local ?? {};
+    const localModel = localOptions.model
+      ?? (localOptions.intelligence === undefined && process.env.INTENTUM_INTELLIGENCE === undefined
+        ? process.env.INTENTUM_LOCAL_MODEL
+        : undefined);
     const configuredBaseURL = process.env.INTENTUM_LOCAL_BASE_URL
       ?? (isLocalBaseURL(process.env.INTENTUM_BASE_URL) ? process.env.INTENTUM_BASE_URL : undefined);
     const localBaseURLs = this.options.localBaseURLs
@@ -474,7 +481,7 @@ export class AutoProvider implements ModelProvider {
           ...this.options,
           ...localOptions,
           baseURL,
-          model: localOptions.model ?? process.env.INTENTUM_LOCAL_MODEL ?? "llama3.2",
+          ...(localModel ? { model: localModel } : {}),
           allowAnonymous: true,
           apiKey: localOptions.apiKey ?? "local"
         }));
@@ -534,7 +541,11 @@ export function createProvider(options: ProviderOptions = {}): ModelProvider {
   if (selected === "local") return new OpenAICompatibleProvider({
     ...withIntelligence(withRetryOptions(options.local, options), intelligence),
     baseURL: options.local?.baseURL ?? process.env.INTENTUM_LOCAL_BASE_URL ?? "http://127.0.0.1:11434/v1",
-    model: options.local?.model ?? process.env.INTENTUM_LOCAL_MODEL ?? "llama3.2",
+    ...(options.local?.model
+      ? { model: options.local.model }
+      : options.local?.intelligence === undefined && process.env.INTENTUM_INTELLIGENCE === undefined && process.env.INTENTUM_LOCAL_MODEL
+        ? { model: process.env.INTENTUM_LOCAL_MODEL }
+        : {}),
     allowAnonymous: true,
     apiKey: options.local?.apiKey ?? "local"
   });
