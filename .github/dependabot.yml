@@ -1,11 +1,22 @@
 version: 2
+
+# Keep all routine dependency updates in one cross-ecosystem pull request.
+multi-ecosystem-groups:
+  all-dependencies:
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+
 updates:
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+    patterns:
+      - "*"
+    multi-ecosystem-group: all-dependencies
+
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: monthly
+    patterns:
+      - "*"
+    multi-ecosystem-group: all-dependencies
