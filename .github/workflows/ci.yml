@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check (Node ${{ matrix.node-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+        node-version:
+          - 20.x
+          - 22.x
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install aw
+        run: npm install --global @7obygit/aw@0.8.1
+
+      - name: Run typecheck, tests, and build through aw
+        run: aw run check
+
+      - name: Run coverage, package, and audit gates
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '22.x'
+        run: |
+          aw run coverage
+          aw run package:check
+          aw run audit
+
+      - name: Upload coverage summary
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '22.x'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          if-no-files-found: error
+          retention-days: 14

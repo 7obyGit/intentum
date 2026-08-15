@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Update npm CLI for provenance publishing
+        run: npm install --global npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install aw
+        run: npm install --global @7obygit/aw@0.8.1
+
+      - name: Verify release through aw
+        run: aw run release:check
+
+      - name: Match tag to package version
+        run: test "v$(node -p \"require('./package.json').version\")" = "$GITHUB_REF_NAME"
+
+      - name: Publish package with npm provenance
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

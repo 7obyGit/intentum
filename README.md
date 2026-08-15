@@ -1,21 +1,32 @@
 # Intentum
 
-Intentum turns typed intent into executable behavior. It is a small TypeScript runtime for model-backed functions, generated implementations, self-repair, and observable workflows.
+![CI](https://github.com/7obyGit/intentum/actions/workflows/ci.yml/badge.svg)
+[![npm version](https://img.shields.io/npm/v/intentum.svg)](https://www.npmjs.com/package/intentum)
+[![License](https://img.shields.io/npm/l/intentum.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-The package is deliberately provider-agnostic. It can call any OpenAI-compatible chat endpoint, use the Codex CLI (including its native JSON Schema output mode), or use a deterministic mock provider in tests.
+Typed, observable AI functions and resilient workflows for TypeScript.
 
-## What is included
+Intentum gives model-backed behavior a small, explicit runtime boundary. Define a typed model function, validate its structured response, observe important workflow steps, retry transient work, or generate a reviewable implementation that can be cached and repaired.
 
-- `llm()` — define text or schema-constrained model functions.
-- `impl()` — generate a JavaScript function body from a specification and cache it.
-- `shim()` — recover from failures with a model-assisted retry or replacement plan.
-- `flow()` — make synchronous and asynchronous functions inspectable runs.
-- `step()` and `retry()` — record meaningful operations, attempts, timings, and failures.
-- `runTask()` / `task()` — launch non-interactive Codex tasks and retain JSONL events.
-- `defineSchema()` and schema helpers — keep structured output runtime-validated and statically typed.
-- `FileCache` / `MemoryCache` — choose persistent or deterministic generated-code caching.
+```text
+your TypeScript
+      │
+      ├── llm()       typed model calls + schema validation + repair
+      ├── impl()      generated function bodies + caching
+      ├── shim()      model-assisted retry or source replacement
+      ├── flow()      observable execution + steps + retries
+      └── task()      non-interactive Codex CLI sessions
+```
 
-Intentum does not hide ordinary TypeScript control flow. A flow is still a function, a model call is still asynchronous, and a step is an explicit boundary you choose to observe.
+## Why Intentum?
+
+- **Types at the boundary** — pair TypeScript inference with runtime JSON Schema validation.
+- **Provider choice without lock-in** — use Codex, any OpenAI-compatible endpoint, a local model, or a deterministic mock.
+- **Recovery with evidence** — structured failures include paths, validation details, and the invalid response so a model can correct it.
+- **Observable by design** — inspect status, timing, attempts, errors, and lifecycle events without instrumenting every function.
+- **Reviewable generation** — generated code is explicit, cacheable, and treated as code rather than hidden magic.
+- **Testable locally** — inject `MockProvider`; no credentials or network are required for unit tests.
 
 ## Install
 
@@ -23,36 +34,18 @@ Intentum does not hide ordinary TypeScript control flow. A flow is still a funct
 npm install intentum
 ```
 
-Intentum requires Node.js 20 or newer. Build from source with `npm run check`.
+Intentum supports Node.js 20 and newer and ships as an ESM package with TypeScript declarations.
 
-## Configure a provider
-
-For an OpenAI-compatible endpoint:
-
-```bash
-export INTENTUM_API_KEY="..."
-export INTENTUM_BASE_URL="https://api.openai.com/v1" # optional
-export INTENTUM_MODEL="gpt-4o-mini"                    # optional
-export INTENTUM_PROVIDER="auto"                       # optional; Codex/local/cloud detection is the default
-```
-
-When neither `model` nor `intelligence` is specified, Intentum defaults to `MEDIUM` (`Luna High`).
-
-By default, Intentum auto-selects an installed Codex CLI first, then a reachable local OpenAI-compatible server (Ollama or LM Studio), then a configured cloud endpoint. To choose explicitly:
-
-```bash
-export INTENTUM_PROVIDER="codex"
-export INTENTUM_CODEX_MODEL="gpt-5.3-codex" # optional
-# or: export INTENTUM_PROVIDER="local"
-#     export INTENTUM_LOCAL_BASE_URL="http://127.0.0.1:11434/v1"
-```
-
-The provider is injectable everywhere, so tests do not need credentials. See [provider configuration](docs/providers.md).
-
-## A structured model function
+## Quick start
 
 ```ts
-import { llm, MockProvider, objectSchema, stringSchema, arraySchema } from "intentum";
+import {
+  MockProvider,
+  arraySchema,
+  llm,
+  objectSchema,
+  stringSchema
+} from "intentum";
 
 const summarySchema = objectSchema("Summary", {
   title: stringSchema(),
@@ -62,99 +55,146 @@ const summarySchema = objectSchema("Summary", {
 const summarize = llm<[string], { title: string; keyPoints: string[] }>({
   schema: summarySchema,
   provider: new MockProvider({
-    structured: { title: "Intentum", keyPoints: ["Typed", "Observable"] }
+    structured: {
+      title: "Intentum",
+      keyPoints: ["Typed", "Observable", "Resilient"]
+    }
   }),
   prompt: ({ args }) => `Summarize this document: ${args[0]}`
 });
 
 const result = await summarize("Intentum is a TypeScript runtime.");
+// { title: "Intentum", keyPoints: ["Typed", "Observable", "Resilient"] }
 ```
 
-Structured output is validated locally after every provider response. Rich schemas support enums, unions, nullable values, tuples, records, constraints, refinements, and arbitrary JSON Schema:
+Replace `MockProvider` with the default provider selection when your application is configured. Intentum checks for Codex first, then reachable local OpenAI-compatible servers, then a configured cloud endpoint.
+
+## Choose a model capability
+
+Use the portable `intelligence` setting instead of coupling application code to a provider-specific model name:
 
 ```ts
-import { enumSchema, objectSchema, stringSchema } from "intentum";
-
-const decisionSchema = objectSchema("Decision", {
-  action: enumSchema("Action", ["allow", "deny"] as const),
-  reason: stringSchema("Reason", { minLength: 3 })
-});
-```
-
-If parsing fails, `llm()` sends the path-aware validation error and the invalid response back to the model and retries once by default. Configure this with `repair: { maxAttempts: 3 }`.
-
-Provider model capability can be selected without hard-coding a provider model identifier:
-
-```ts
-const decide = llm<[], { action: "allow" | "deny"; reason: string }>({
+const answer = llm<[], string>({
   intelligence: "HIGH",
-  schema: decisionSchema,
-  prompt: () => "Decide whether the request should be allowed."
+  prompt: () => "Give a concise answer."
 });
 ```
 
-`LOW`, `MEDIUM`, and `HIGH` map to `Luna Low`, `Luna High`, and `Sol High` respectively. (The `intelligence` option is available through provider options and can also be set with `INTENTUM_INTELLIGENCE`.)
+| Intelligence | Built-in model mapping |
+| --- | --- |
+| `LOW` | `Luna Low` |
+| `MEDIUM` | `Luna High` |
+| `HIGH` | `Sol High` |
 
-The OpenAI-compatible provider sends the schema as `response_format.json_schema`. The Codex provider writes the schema to a temporary file and invokes `codex exec --output-schema ...`, then validates the returned JSON through the same schema.
+The default is `MEDIUM`. Set `INTENTUM_INTELLIGENCE` or provide an explicit model when needed.
 
-## Observable workflows
+## Configure providers
+
+```bash
+# Automatic selection is the default.
+export INTENTUM_PROVIDER=auto
+export INTENTUM_API_KEY="..."
+
+# Or force one route.
+export INTENTUM_PROVIDER=codex
+# export INTENTUM_PROVIDER=local
+# export INTENTUM_LOCAL_BASE_URL=http://127.0.0.1:11434/v1
+```
+
+The Codex CLI must already be installed and authenticated. OpenAI-compatible providers accept `INTENTUM_BASE_URL`, `INTENTUM_MODEL`, and the retry/timeout options documented in [Provider configuration](docs/providers.md).
+
+## Build observable workflows
 
 ```ts
 import { flow, retry, step } from "intentum";
 
 const research = flow(async (topic: string) => {
-  const plan = await step(() => makePlan(topic), { name: "plan" });
-  return Promise.all(plan.items.map((item) => retry(
+  const cleaned = step(() => topic.trim(), { name: "clean" });
+  return retry(
     { attempts: 3, delayMs: 250, backoff: 2 },
-    () => researchItem(item),
-    { name: `research:${item}` }
-  )));
-}, { silent: false });
+    () => fetchResearch(cleaned),
+    { name: "research" }
+  );
+}, { silent: true });
 
 const run = research("typed workflow libraries");
-console.log(await run.result());
-console.log(run.status, run.steps);
+const result = await run.result();
+console.log(run.status, run.steps, result);
 ```
 
-Every call returns a `FlowRun`: it has a status, timing, error, child step records, `result()` / `promise`, cooperative `stop()`, and whole-run `retry()` after failure. Read [the flow guide](docs/flows.md) for async behavior and cancellation.
+Flows remain ordinary functions. Only the boundaries you mark with `step()` and `retry()` become observable.
 
-## Generated implementations and repair
+## Structured schemas and recovery
+
+Built-in helpers cover enums, literals, unions, nullable values, tuples, records, refinements, and constraints. `fromJsonSchema()` accepts complex JSON Schema, and `fromZod()` adapts a Zod-like parser without making Zod a dependency.
+
+Unknown object fields are stripped by default so harmless model additions do not fail a request. Use `unknownKeys: "passthrough"` to retain them. Validation errors are path-aware, for example `$.items[2].name`.
+
+When a structured response is invalid, `llm()` includes the validation error and previous output in a repair prompt and retries once by default:
+
+```ts
+import { enumSchema, llm, objectSchema } from "intentum";
+
+const robustAnswer = llm<[], { action: "allow" | "deny" }>({
+  schema: objectSchema("Decision", {
+    action: enumSchema("Action", ["allow", "deny"] as const)
+  }),
+  repair: { maxAttempts: 3 },
+  prompt: () => "Choose whether this request is allowed."
+});
+```
+
+Authentication, cancellation, and ordinary transport failures retain their original error semantics; only structured parse/validation failures are repaired.
+
+## Generated behavior
 
 ```ts
 const slugify = impl<[string], string>({
   name: "slugify",
   parameters: ["value"],
-  description: "Convert arbitrary text to a lowercase URL slug separated by hyphens.",
-  returnType: "string",
-  provider: new MockProvider({ text: "return value.trim().toLowerCase().replaceAll(/[^a-z0-9]+/g, \"-\");" }),
-  cache: new MemoryCache()
-});
-
-const safeParse = shim({
-  name: "parseJson",
-  parameters: ["input"],
-  fn: (input: string) => JSON.parse(input) as unknown,
-  provider: new MockProvider({
-    structured: { strategy: "rewrite", body: "return JSON.parse(input.replaceAll(\"'\", '\"'));" }
-  })
+  description: "Convert text to a lowercase URL slug separated by hyphens.",
+  returnType: "string"
 });
 ```
 
-Generated source is intentionally explicit and cacheable. Treat model-generated code as code: run it in a constrained process for untrusted prompts and review cached implementations before production use.
+`impl()` caches the generated JavaScript body by default. `shim()` can retry a failing function or compile a model-provided replacement body. Generated code executes in the current process: review it and use a worker or sandbox for untrusted prompts.
 
-## Documentation and examples
+## Documentation
 
-- [Documentation index](docs/README.md)
-- [API guide](docs/api.md)
-- [Providers and structured output](docs/providers.md)
-- [Typed flows](docs/flows.md)
-- [Examples guide](docs/examples.md)
-- Runnable source examples in [`examples/`](examples/)
+| Guide | What it covers |
+| --- | --- |
+| [Documentation home](docs/README.md) | Product map and design principles |
+| [API guide](docs/api.md) | Schemas, `llm`, `impl`, `shim`, providers, and tasks |
+| [Provider configuration](docs/providers.md) | Auto-detection, Codex, HTTP retries, and safety |
+| [Typed flows](docs/flows.md) | Steps, retries, cancellation, and events |
+| [Examples](docs/examples.md) | Runnable examples in [`examples/`](examples/) |
+| [Releasing](docs/releasing.md) | npm release checklist and trusted publishing |
+| [Contributing](CONTRIBUTING.md) | Branch, PR, review, and local workflow |
+
+## Development
+
+```bash
+npm ci
+npm run check
+npm run coverage
+npm run package:check
+```
+
+If you use the [`aw` CLI](https://github.com/7obyGit/aw), the same workflows are available as:
+
+```bash
+aw run check
+aw run coverage
+aw run package:check
+aw run audit
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 ## Project status
 
-Intentum is an initial working base for review. The API is intentionally small and explicit; persistence, distributed workers, model-specific tool calling, and a full sandbox are future concerns rather than hidden behavior in this first release.
+Intentum is a focused, actively evolving runtime. The API is deliberately explicit: distributed workers, provider-specific tool calling, and a full code sandbox are outside the package’s current boundary rather than hidden behind it.
 
-```bash
-npm run check
-```
+## License
+
+MIT © 7obyGit
