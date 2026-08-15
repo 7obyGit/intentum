@@ -1,0 +1,5 @@
+# Require the repository owner to approve every change.
+* @7obyGit
+
+# Keep the ownership rule itself under the repository owner's control.
+/.github/CODEOWNERS @7obyGit
