@@ -47,7 +47,7 @@ export interface ShimDefinition<Args extends readonly unknown[], Result> {
 export function shim<Args extends readonly unknown[], Result>(
   definition: ShimDefinition<Args, Result>
 ): (...args: Args) => Promise<Result> {
-  const provider = definition.provider ?? providerFromEnvironment();
+  const provider = definition.provider ?? providerFromEnvironment(definition.providerOptions);
   const maxAttempts = Math.max(1, definition.maxAttempts ?? 2);
   return async (...args: Args): Promise<Result> => {
     let lastError: unknown;

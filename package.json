@@ -11,7 +11,13 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE", "docs", "examples"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs",
+    "examples"
+  ],
   "scripts": {
     "build": "node ./node_modules/typescript/lib/tsc.js -p tsconfig.json",
     "test": "node ./node_modules/vitest/vitest.mjs run",
@@ -26,7 +32,15 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": ["ai", "llm", "typescript", "workflows", "structured-output", "codex", "automation"],
+  "keywords": [
+    "ai",
+    "llm",
+    "typescript",
+    "workflows",
+    "structured-output",
+    "codex",
+    "automation"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -37,6 +51,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.7.0",
     "vitest": "^2.1.8"
   }

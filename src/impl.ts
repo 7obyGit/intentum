@@ -51,10 +51,14 @@ export function impl<Args extends readonly unknown[], Result>(
           prompt: await (definition.prompt?.(args) ?? buildPrompt(definition)),
           system: "Generate only the JavaScript function body. Do not include markdown fences or explanations."
         }));
+        const compiled = compileBody<Args, Result>(definition.parameters, body);
         if (!cached) await cache?.set(key, body);
-        implementation = compileBody<Args, Result>(definition.parameters, body);
-        return implementation;
-      })();
+        implementation = compiled;
+        return compiled;
+      })().catch((error: unknown) => {
+        loading = undefined;
+        throw error;
+      });
     }
     return loading;
   };

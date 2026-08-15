@@ -4,6 +4,16 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
-    coverage: { reporter: ["text"] }
+    coverage: {
+      include: ["src/**/*.ts"],
+      exclude: ["src/index.ts"],
+      reporter: ["text"],
+      thresholds: {
+        statements: 85,
+        branches: 70,
+        functions: 90,
+        lines: 85
+      }
+    }
   }
 });

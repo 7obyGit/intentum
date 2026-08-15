@@ -423,7 +423,7 @@ export interface AutoProviderOptions extends ProviderRetryOptions {
 export class AutoProvider implements ModelProvider {
   private readonly options: AutoProviderOptions;
   private candidatesPromise?: Promise<readonly ModelProvider[]>;
-  private active?: ModelProvider;
+  private active: ModelProvider | undefined;
 
   constructor(options: AutoProviderOptions = {}) {
     this.options = options;
@@ -438,7 +438,10 @@ export class AutoProvider implements ModelProvider {
   }
 
   private async run<T>(operation: (provider: ModelProvider) => Promise<T>): Promise<T> {
-    const candidates = this.active ? [this.active] : await (this.candidatesPromise ??= this.discover());
+    const discovered = await (this.candidatesPromise ??= this.discover());
+    const candidates = this.active
+      ? [this.active, ...discovered.filter((candidate) => candidate !== this.active)]
+      : discovered;
     let lastError: unknown;
     for (const candidate of candidates) {
       try {
@@ -448,6 +451,7 @@ export class AutoProvider implements ModelProvider {
       } catch (error) {
         lastError = error;
         if (!isFallbackEligible(error)) throw error;
+        if (candidate === this.active) this.active = undefined;
       }
     }
     throw lastError ?? new ProviderError("No usable model provider was detected", {
@@ -488,8 +492,8 @@ export class AutoProvider implements ModelProvider {
       }
     }
 
-    const apiKey = process.env.INTENTUM_API_KEY ?? process.env.OPENAI_API_KEY;
     const cloudOptions = this.options.openai ?? {};
+    const apiKey = cloudOptions.apiKey ?? process.env.INTENTUM_API_KEY ?? process.env.OPENAI_API_KEY;
     if (apiKey) providers.push(new OpenAICompatibleProvider({ ...this.options, ...cloudOptions, apiKey, allowAnonymous: false }));
     if (providers.length === 0) {
       throw new ProviderError("No provider detected. Install/authenticate Codex, start a local LLM, or set INTENTUM_API_KEY.", {

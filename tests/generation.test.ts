@@ -44,4 +44,67 @@ describe("generation and repair", () => {
     await expect(make("two")(1)).resolves.toBe(1);
     expect(calls).toBe(2);
   });
+
+  it("coalesces concurrent generation and preserves the first call's arguments", async () => {
+    let calls = 0;
+    let prompt = "";
+    const fn = impl<[number], number>({
+      name: "coalesced",
+      parameters: ["value"],
+      description: "Return the value.",
+      prompt: ([value]) => {
+        prompt = `value=${value}`;
+        return prompt;
+      },
+      provider: new MockProvider({
+        text: async () => {
+          calls += 1;
+          await new Promise<void>((resolve) => setTimeout(resolve, 5));
+          return "return value + 1;";
+        }
+      }),
+      cache: false
+    });
+    await expect(Promise.all([fn(1), fn(2)])).resolves.toEqual([2, 3]);
+    expect(calls).toBe(1);
+    expect(prompt).toBe("value=1");
+  });
+
+  it("does not cache invalid generated code and can recover after a provider failure", async () => {
+    let calls = 0;
+    const cache = new MemoryCache();
+    const fn = impl<[number], number>({
+      name: "recoverable",
+      parameters: ["value"],
+      description: "Return the value.",
+      cache,
+      provider: new MockProvider({
+        text: () => {
+          calls += 1;
+          if (calls === 1) return "return ; this is not valid JavaScript";
+          return "return value * 3;";
+        }
+      })
+    });
+    await expect(fn(2)).rejects.toThrow();
+    await expect(fn(2)).resolves.toBe(6);
+    expect(calls).toBe(2);
+  });
+
+  it("can disable persistence while retaining per-function in-memory reuse", async () => {
+    let calls = 0;
+    const provider = new MockProvider({ text: () => { calls += 1; return "return value;"; } });
+    const make = () => impl<[number], number>({
+      name: "uncached",
+      parameters: ["value"],
+      description: "Return the value.",
+      provider,
+      cache: false
+    });
+    const first = make();
+    await expect(first(1)).resolves.toBe(1);
+    await expect(first(2)).resolves.toBe(2);
+    await expect(make()(3)).resolves.toBe(3);
+    expect(calls).toBe(2);
+  });
 });
