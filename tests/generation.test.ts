@@ -28,4 +28,20 @@ describe("generation and repair", () => {
     });
     await expect(parse("{'ok':true}")).resolves.toEqual({ ok: true });
   });
+
+  it("supports explicit cache invalidation for changed generated behavior", async () => {
+    const cache = new MemoryCache();
+    let calls = 0;
+    const make = (cacheVersion: string) => impl<[number], number>({
+      name: "versioned",
+      parameters: ["value"],
+      description: "Return the value.",
+      cacheVersion,
+      cache,
+      provider: new MockProvider({ text: () => { calls += 1; return "return value;"; } })
+    });
+    await expect(make("one")(1)).resolves.toBe(1);
+    await expect(make("two")(1)).resolves.toBe(1);
+    expect(calls).toBe(2);
+  });
 });

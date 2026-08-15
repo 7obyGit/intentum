@@ -33,14 +33,16 @@ For an OpenAI-compatible endpoint:
 export INTENTUM_API_KEY="..."
 export INTENTUM_BASE_URL="https://api.openai.com/v1" # optional
 export INTENTUM_MODEL="gpt-4o-mini"                    # optional
-export INTENTUM_PROVIDER="openai"                     # optional; this is the default
+export INTENTUM_PROVIDER="auto"                       # optional; Codex/local/cloud detection is the default
 ```
 
-To use an installed Codex CLI:
+By default, Intentum auto-selects an installed Codex CLI first, then a reachable local OpenAI-compatible server (Ollama or LM Studio), then a configured cloud endpoint. To choose explicitly:
 
 ```bash
 export INTENTUM_PROVIDER="codex"
 export INTENTUM_CODEX_MODEL="gpt-5.3-codex" # optional
+# or: export INTENTUM_PROVIDER="local"
+#     export INTENTUM_LOCAL_BASE_URL="http://127.0.0.1:11434/v1"
 ```
 
 The provider is injectable everywhere, so tests do not need credentials. See [provider configuration](docs/providers.md).
@@ -65,6 +67,31 @@ const summarize = llm<[string], { title: string; keyPoints: string[] }>({
 
 const result = await summarize("Intentum is a TypeScript runtime.");
 ```
+
+Structured output is validated locally after every provider response. Rich schemas support enums, unions, nullable values, tuples, records, constraints, refinements, and arbitrary JSON Schema:
+
+```ts
+import { enumSchema, objectSchema, stringSchema } from "intentum";
+
+const decisionSchema = objectSchema("Decision", {
+  action: enumSchema("Action", ["allow", "deny"] as const),
+  reason: stringSchema("Reason", { minLength: 3 })
+});
+```
+
+If parsing fails, `llm()` sends the path-aware validation error and the invalid response back to the model and retries once by default. Configure this with `repair: { maxAttempts: 3 }`.
+
+Provider model capability can be selected without hard-coding a provider model identifier:
+
+```ts
+const decide = llm<[], { action: "allow" | "deny"; reason: string }>({
+  intelligence: "HIGH",
+  schema: decisionSchema,
+  prompt: () => "Decide whether the request should be allowed."
+});
+```
+
+`LOW`, `MEDIUM`, and `HIGH` map to `Luna Low`, `Luna High`, and `Sol High` respectively. (The `intelligence` option is available through provider options and can also be set with `INTENTUM_INTELLIGENCE`.)
 
 The OpenAI-compatible provider sends the schema as `response_format.json_schema`. The Codex provider writes the schema to a temporary file and invokes `codex exec --output-schema ...`, then validates the returned JSON through the same schema.
 

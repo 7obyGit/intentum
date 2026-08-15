@@ -19,6 +19,10 @@
     "typecheck": "node ./node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.test.json",
     "check": "npm run typecheck && npm test && npm run build"
   },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
   "engines": {
     "node": ">=20"
   },

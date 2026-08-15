@@ -24,7 +24,23 @@ const answer = objectSchema("Answer", {
 });
 ```
 
-For richer validation, use `defineSchema()` or adapt Zod with `fromZod()`. The parser is always called after a provider response, even if the provider claims to have enforced the schema.
+Rich schemas are available through composable helpers:
+
+```ts
+const result = objectSchema("Result", {
+  status: enumSchema("Status", ["ok", "error"] as const),
+  payload: nullableSchema(recordSchema(stringSchema()))
+});
+
+const pair = tupleSchema([stringSchema(), numberSchema()] as const);
+const identifier = unionSchema("Identifier", [stringSchema(), numberSchema()] as const);
+```
+
+String, number, array, and object helpers accept JSON Schema constraints such as `minLength`, `pattern`, `minimum`, `maximum`, `minItems`, and `uniqueItems`. `objectSchema()` strips unknown fields by default, because model-added fields are normally harmless. Use `unknownKeys: "passthrough"` when they should be retained.
+
+`fromJsonSchema()` supports arbitrary JSON Schema supported by the bundled validator, including `anyOf`, `oneOf`, `allOf`, `const`, `enum`, nested objects, arrays, records, and formats. `refineSchema()` adds a runtime-only predicate when a rule cannot be represented in JSON Schema. `defineSchema()` and `fromZod()` remain available for custom parsers.
+
+Every built-in parser validates locally after a provider response, even if the provider claims to have enforced the schema. Failures throw `SchemaValidationError` with paths such as `$.items[2].name`, a keyword, and the provider-facing message.
 
 ## `llm()`
 
@@ -37,6 +53,18 @@ const answer = llm<[string], Answer>({
   provider: customProvider
 });
 ```
+
+Structured parsing failures are repaired automatically by default. The model receives the schema, validation paths, and (when available) the invalid response, then gets one correction attempt:
+
+```ts
+const robustAnswer = llm<[string], Answer>({
+  schema: answerSchema,
+  repair: { maxAttempts: 3 },
+  prompt: ({ args }) => `Answer ${args[0]}`
+});
+```
+
+Only structured parse/validation failures trigger this repair prompt; authentication, cancellation, and ordinary provider failures retain their original error semantics.
 
 The prompt callback receives the original arguments, a safe display representation, discovered file paths, and discovered data-URI/image inputs. Returning a schema makes the call structured; without one, the provider's text response is returned as `Result` and the caller should use `string` as the result type.
 

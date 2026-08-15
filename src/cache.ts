@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { Cache } from "./types.js";
 
@@ -34,6 +34,14 @@ export class FileCache implements Cache {
 
   async set(key: string, value: string): Promise<void> {
     await mkdir(this.directory, { recursive: true });
-    await writeFile(this.path(key), value, "utf8");
+    const target = this.path(key);
+    const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, value, "utf8");
+      await rename(temporary, target);
+    } catch (error) {
+      await rm(temporary, { force: true }).catch(() => undefined);
+      throw error;
+    }
   }
 }
