@@ -29,7 +29,7 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
-      - name: Update npm CLI for provenance publishing
+      - name: Update npm CLI for Trusted Publishing
         run: npm install --global npm@latest
 
       - name: Install dependencies
@@ -44,7 +44,5 @@ jobs:
       - name: Match tag to package version
         run: test "v$(node -p \"require('./package.json').version\")" = "$GITHUB_REF_NAME"
 
-      - name: Publish package with npm provenance
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish package with npm Trusted Publishing
+        run: npm publish --access public

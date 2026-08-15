@@ -5,13 +5,13 @@ Intentum publishes from GitHub Actions when a semantic version tag is pushed. Th
 ## One-time setup
 
 1. Create or verify the public npm package `intentum`.
-2. Configure [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) for this repository and the `release.yml` workflow, or provide an `NPM_TOKEN` repository secret.
+2. Configure [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) for GitHub Actions with user `7obyGit`, repository `intentum`, workflow filename `release.yml`, and the `npm publish` action.
 3. Protect `main` and require pull requests, approvals, and passing CI before merge.
 4. Keep the package `repository`, `homepage`, and npm access settings aligned with the GitHub repository.
 
-The release workflow is intentionally tag-driven. Before the first release, configure npm trusted
-publishing (preferred) or add the `NPM_TOKEN` secret. The repository currently has no npm token
-configured, and the package has not been published yet.
+The release workflow is intentionally tag-driven and authenticates to npm through GitHub Actions
+OIDC. It does not use an `NPM_TOKEN` secret. Trusted Publishing automatically generates npm
+provenance for this public package.
 
 ## Public repository security gate
 
@@ -28,7 +28,8 @@ GitHub Free does not expose all of these controls for a private personal reposit
 dependency review and CodeQL workflows are committed in advance and skip cleanly until the repository
 is public; apply the GitHub settings above before accepting public contributions.
 
-The release workflow uses Node.js 24, the current npm CLI, `npm ci`, the repository’s `aw` commands, `npm pack --dry-run`, and `npm publish --provenance --access public`.
+The release workflow uses Node.js 24, the current npm CLI, `npm ci`, the repository’s `aw` commands,
+`npm pack --dry-run`, and `npm publish --access public` through Trusted Publishing.
 
 ## Release checklist
 
