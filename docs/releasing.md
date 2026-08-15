@@ -9,6 +9,25 @@ Intentum publishes from GitHub Actions when a semantic version tag is pushed. Th
 3. Protect `main` and require pull requests, approvals, and passing CI before merge.
 4. Keep the package `repository`, `homepage`, and npm access settings aligned with the GitHub repository.
 
+The release workflow is intentionally tag-driven. Before the first release, configure npm trusted
+publishing (preferred) or add the `NPM_TOKEN` secret. The repository currently has no npm token
+configured, and the package has not been published yet.
+
+## Public repository security gate
+
+Complete these settings immediately after changing the repository visibility to public:
+
+- Enable Dependabot alerts, Dependabot security updates, secret scanning, and secret scanning push protection.
+- Enable CodeQL code scanning and keep the `CodeQL` workflow green.
+- Enable private vulnerability reporting and keep [the security policy](../SECURITY.md) current.
+- Protect `main`: require pull requests, at least one maintainer approval when another maintainer is available, passing `CI` checks, conversation resolution, linear history, and no force-pushes or deletions.
+- Protect release tags matching `v*.*.*` so only maintainers can create, update, or delete tags that publish to npm.
+- Keep Actions restricted to the selected GitHub-owned actions and require full-length commit SHAs for action references.
+
+GitHub Free does not expose all of these controls for a private personal repository. The public-only
+dependency review and CodeQL workflows are committed in advance and skip cleanly until the repository
+is public; apply the GitHub settings above before accepting public contributions.
+
 The release workflow uses Node.js 24, the current npm CLI, `npm ci`, the repository’s `aw` commands, `npm pack --dry-run`, and `npm publish --provenance --access public`.
 
 ## Release checklist
